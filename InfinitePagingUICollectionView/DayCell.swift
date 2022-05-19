@@ -21,13 +21,13 @@ final class DayCollectionViewCell: SwiftUICollectionViewCell<Day> {
 struct Day: View {
     
     let index: Int
-    @ObservedObject var data: Model
+    let data: Int
     
     var body: some View {
         VStack(alignment: .leading) {
             Text("Index \(index)").font(.body)
                 
-            Text("Data \(data.data)").font(.system(size: 60, weight: .semibold))
+            Text("Data \(data)").font(.system(size: 60, weight: .semibold))
         }
         
         .padding()

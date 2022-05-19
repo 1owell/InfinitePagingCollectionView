@@ -41,10 +41,29 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
         controller.collectionView.register(DayCollectionViewCell.self, forCellWithReuseIdentifier: DayCollectionViewCell.reuseID)
         controller.collectionView.delegate = context.coordinator
         
-        context.coordinator.dataSource = InfiniteDataSource<Cell>(dataModel, controller)
-        controller.collectionView.dataSource = context.coordinator.dataSource
+        let dataSource = UICollectionViewDiffableDataSource<Section, Identifier>(collectionView: controller.collectionView)
+        { collectionView, indexPath, itemIdentifier in
+            let reuse = DayCollectionViewCell.reuseID
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: reuse, for: indexPath) as! Cell
+
+            cell.configure(in: controller, withView: Day(index: indexPath.row, data: itemIdentifier) as! Cell.Content)
+
+            return cell
+        }
+        
+        context.coordinator.dataSource = dataSource
+        
+        updateCollectionViewData(with: dataModel.data, using: dataSource, animate: false)
 
         return controller
+    }
+    
+    
+    private func updateCollectionViewData(with data: [Identifier], using dataSource: DataSource, animate: Bool = true) {
+        var snapshot = NSDiffableDataSourceSnapshot<Section, Identifier>()
+        snapshot.appendSections([.main])
+        snapshot.appendItems(data)
+        dataSource.apply(snapshot, animatingDifferences: animate)
     }
     
     
@@ -74,11 +93,12 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
     private func shiftData(_ scrollView: UICollectionView, context: Context) {
         
         guard dataModel.shouldAdjustData else {
-            print("Preventing data shift because page (\(page.index)) is not greater than the middle point \( dataModel.data[(dataModel.data.count - 1) / 2].data )")
+            print("Preventing data shift because page (\(page.index)) is not greater than the middle point \( dataModel.data[(dataModel.data.count - 1) / 2] )")
             
             // getting called twice
             if dataModel.shouldDecrement && page.index < context.coordinator._temp {
                 dataModel.decrement()
+                updateCollectionViewData(with: dataModel.data, using: context.coordinator.dataSource, animate: false)
                 let index = (dataModel.data.count - 1) / 2
                 scrollTo(index, view: scrollView, context: context)
                 context.coordinator._temp = dataModel.page.index
@@ -89,6 +109,7 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
         
         if dataModel.page.index > context.coordinator._temp {
             dataModel.increment()
+            updateCollectionViewData(with: dataModel.data, using: context.coordinator.dataSource, animate: false)
             let index = (dataModel.data.count - 1) / 2
             scrollTo(index, view: scrollView, context: context)
         }
@@ -103,7 +124,7 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
         var offset = 0.0
         var _temp: Int = 0
         
-        var dataSource: InfiniteDataSource<Cell>!
+        var dataSource: UICollectionViewDiffableDataSource<Section, Identifier>!
         
         init(_ page: Binding<Page>) {
             self._page = page
@@ -160,31 +181,5 @@ extension UICollectionView {
     func scrollToPage(index: Int, animated: Bool = true, offset: inout Double) {
         scrollToItem(at: .init(item: index, section: 0), at: .centeredHorizontally, animated: animated)
         offset = self.contentOffset.x
-    }
-}
-
-
-class InfiniteDataSource<Cell: UICollectionViewCell & Configurable>: NSObject, UICollectionViewDataSource {
-    
-    let dataModel: DataModel
-    let controller: UIViewController
-    
-    init(_ dataModel: DataModel, _ controller: UIViewController) {
-        self.dataModel = dataModel
-        self.controller = controller
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return dataModel.data.count
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let reuse = DayCollectionViewCell.reuseID
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: reuse, for: indexPath) as! Cell
-
-        let data = dataModel.fetchData(for: indexPath.row)
-        cell.configure(in: controller, withView: Day(index: indexPath.row, data: data) as! Cell.Content)
-
-        return cell
     }
 }

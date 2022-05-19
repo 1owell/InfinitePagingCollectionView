@@ -34,34 +34,34 @@ class DataModel: ObservableObject {
     
     @Published var page = Page()
     
-    @Published var data: [Model] = [0, 1, 2, 3, 4, 5, 6].map(Model.init)
+    @Published var data: [Int] = [0, 1, 2, 3, 4, 5, 6]
     
-    func fetchData(for index: Int) -> Model {
+    func fetchData(for index: Int) -> Int {
         return data[index]
     }
     
     var shouldAdjustData: Bool {
-        page.index > data[(data.count - 1) / 2].data
+        page.index > data[(data.count - 1) / 2]
     }
     
-    var shouldDecrement: Bool { data.first!.data > 0 }
+    var shouldDecrement: Bool { data.first! > 0 }
     
     func increment() {
         for index in 0..<data.count {
-            data[index].data += 1
+            data[index] += 1
         }
-        objectWillChange.send()
-        print("Data incremented \(data.map(\.data))")
+        
+        print("Data incremented \(data)")
     }
     
     func decrement() {
-        guard data.first?.data != 0 else { return }
+        guard data.first != 0 else { return }
         
         for index in 0..<data.count {
-            data[index].data -= 1
+            data[index] -= 1
         }
-        objectWillChange.send()
-        print("Data decremented \(data.map(\.data))")
+        
+        print("Data decremented \(data)")
     }
 }
 
@@ -73,9 +73,9 @@ struct ContentView: View {
         VStack {
             HStack {
                 Text("Data: ")
-                ForEach(dataModel.data) { model in
-                    Text(model.data.description)
-                        .foregroundColor(model.data == dataModel.page.index ? .red : .white)
+                ForEach(dataModel.data, id: \.self) { model in
+                    Text(model.description)
+                        .foregroundColor(model == dataModel.page.index ? .red : .white)
                 }
             }
             
