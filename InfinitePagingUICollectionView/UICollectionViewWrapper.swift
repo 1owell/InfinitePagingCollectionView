@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Combine
 
 protocol CollectionViewSection: Hashable {
     static var main: Self { get }
@@ -23,7 +22,7 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
     typealias DataSource = UICollectionViewDiffableDataSource<Section, Identifier>
     
     @Binding var page: Page
-    @EnvironmentObject var dataModel: DataModel
+    let dataModel: DataModel
     
     private var layout: UICollectionViewFlowLayout {
         let layout = UICollectionViewFlowLayout()
@@ -59,6 +58,22 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
     }
     
     
+    /// Updates scroll view when the page state changes
+    private func updateVisiblePage(_ collectionView: UICollectionView, context: Context) {
+        guard dataModel.page.index != context.coordinator._temp else { return }
+        
+        // TODO: This isn't working properly
+        
+        if dataModel.page.index == context.coordinator._temp + 1 {
+            collectionView.setContentOffset(.init(x: collectionView.contentOffset.x + collectionView.frame.width, y: 0), animated: true)
+            context.coordinator.offset = collectionView.contentOffset.x + collectionView.frame.width
+        } else if dataModel.page.index == context.coordinator._temp - 1 {
+            collectionView.setContentOffset(.init(x: collectionView.contentOffset.x - collectionView.frame.width, y: 0), animated: true)
+            context.coordinator.offset = collectionView.contentOffset.x - collectionView.frame.width
+        }
+    }
+    
+    
     private func updateCollectionViewData(with data: [Identifier], using dataSource: DataSource, animate: Bool = true) {
         var snapshot = NSDiffableDataSourceSnapshot<Section, Identifier>()
         snapshot.appendSections([.main])
@@ -67,8 +82,15 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
     }
     
     
+    private func reconfigureData(with data: [Identifier], using dataSource: DataSource) {
+        var snapshot = dataSource.snapshot()
+        snapshot.reconfigureItems(data)
+        dataSource.apply(snapshot, animatingDifferences: false)
+    }
+    
+    
     func updateUIViewController(_ uiViewController: UICollectionViewController, context: Context) {
-        print("updateUIViewController called")
+//        updateVisiblePage(uiViewController.collectionView, context: context)
         shiftData(uiViewController.collectionView, context: context)
     }
     
@@ -121,9 +143,9 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
     final class Coordinator: NSObject, UICollectionViewDelegateFlowLayout, UICollectionViewDelegate {
         
         @Binding var page: Page
+        
         var offset = 0.0
         var _temp: Int = 0
-        
         var dataSource: UICollectionViewDiffableDataSource<Section, Identifier>!
         
         init(_ page: Binding<Page>) {
@@ -136,7 +158,7 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
         
         // Triggered from programmatic scroll
         func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
-    //        afterScrollActions(scrollView)
+            afterScrollActions(scrollView)
         }
         
         // Triggered from finger scroll
@@ -163,23 +185,5 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
             print("Scroll complete, now at page \(page.index)")
             offset = currentOffset
         }
-    }
-}
-
-
-extension UICollectionView {
-    
-    var currentPage: Int {
-        Int(contentOffset.x / frame.size.width)
-    }
-    
-    func scrollToEnd(_ section: Int) {
-        let row = numberOfItems(inSection: section) - 1
-        scrollToItem(at: .init(row: row, section: section), at: .centeredHorizontally, animated: true)
-    }
-    
-    func scrollToPage(index: Int, animated: Bool = true, offset: inout Double) {
-        scrollToItem(at: .init(item: index, section: 0), at: .centeredHorizontally, animated: animated)
-        offset = self.contentOffset.x
     }
 }
