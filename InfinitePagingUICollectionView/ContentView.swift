@@ -13,25 +13,24 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
-            HStack {
+            HStack(spacing: 2) {
                 Text("Data: ")
                 ForEach(dataModel.data, id: \.self) { model in
-                    Text(model.description)
-                        .foregroundColor(model == dataModel.page.index ? .red : .black)
+                    Text(model.description).foregroundColor(model == dataModel.page.index ? .red : .black).font(.caption)
                 }
             }
             
             Text("Page \(dataModel.page.index)")
             
-            InfinitePagingCollectionView<DayCollectionViewCell>(page: $dataModel.page, dataModel: dataModel)
+            InfinitePagingCollectionView(page: $dataModel.page, dataModel: dataModel)
                 .scaleEffect(0.9)
             
             HStack {
-                Button(action: { dataModel.page.decrement() }, label: {
+                Button(action: { dataModel.decrement(withAnimation: true) }, label: {
                     Image(systemName: "arrow.backward")
                 })
                 
-                Button(action: { dataModel.page.increment() }, label: {
+                Button(action: { dataModel.increment(withAnimation: true) }, label: {
                     Image(systemName: "arrow.forward")
                 })
             }

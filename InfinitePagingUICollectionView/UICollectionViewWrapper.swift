@@ -1,6 +1,5 @@
 //
 //  UICollectionViewWrapper.swift
-//  Retrospect (iOS)
 //
 //  Created by Lowell Pence on 4/24/22.
 //
@@ -15,7 +14,7 @@ enum DayCollectionSection: Int {
     case main
 }
 
-struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: UIViewControllerRepresentable {
+struct InfinitePagingCollectionView: UIViewControllerRepresentable {
     
     typealias Section    = DayCollectionSection
     typealias Identifier = Int
@@ -37,7 +36,7 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
         let controller = UICollectionViewController(collectionViewLayout: layout)
         controller.collectionView.showsHorizontalScrollIndicator = false
         controller.collectionView.isPagingEnabled = true
-        controller.collectionView.register(DayCollectionViewCell.self, forCellWithReuseIdentifier: DayCollectionViewCell.reuseID)
+        controller.collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: DayCollectionViewCell.reuseID)
         controller.collectionView.delegate = context.coordinator
         
         let dataSource = UICollectionViewDiffableDataSource<Section, Identifier>(collectionView: controller.collectionView)
@@ -58,115 +57,86 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
     }
     
     
-    /// Updates scroll view when the page state changes
-    private func updateVisiblePage(_ collectionView: UICollectionView, context: Context) {
-        guard dataModel.page.index != context.coordinator._temp else { return }
-        
-        // TODO: This isn't working properly
-        
-        if dataModel.page.index == context.coordinator._temp + 1 {
-            collectionView.setContentOffset(.init(x: collectionView.contentOffset.x + collectionView.frame.width, y: 0), animated: true)
-            context.coordinator.offset = collectionView.contentOffset.x + collectionView.frame.width
-        } else if dataModel.page.index == context.coordinator._temp - 1 {
-            collectionView.setContentOffset(.init(x: collectionView.contentOffset.x - collectionView.frame.width, y: 0), animated: true)
-            context.coordinator.offset = collectionView.contentOffset.x - collectionView.frame.width
-        }
-    }
-    
-    
-    private func updateCollectionViewData(with data: [Identifier], using dataSource: DataSource, animate: Bool = true) {
+    private func updateCollectionViewData(with data: [Identifier],
+                                          using dataSource: DataSource,
+                                          animate: Bool = true,
+                                          completion: (() -> ())? = nil) {
         var snapshot = NSDiffableDataSourceSnapshot<Section, Identifier>()
         snapshot.appendSections([.main])
         snapshot.appendItems(data)
-        dataSource.apply(snapshot, animatingDifferences: animate)
-    }
-    
-    
-    private func reconfigureData(with data: [Identifier], using dataSource: DataSource) {
-        var snapshot = dataSource.snapshot()
-        snapshot.reconfigureItems(data)
-        dataSource.apply(snapshot, animatingDifferences: false)
+        dataSource.apply(snapshot, animatingDifferences: animate, completion: completion)
     }
     
     
     func updateUIViewController(_ uiViewController: UICollectionViewController, context: Context) {
-//        updateVisiblePage(uiViewController.collectionView, context: context)
-        shiftData(uiViewController.collectionView, context: context)
+        if page.animate {
+            // User tapped arrow button, should scroll then update data in the scrollViewDidEndAnimation delegate
+            scrollTo(dataModel.index, view: uiViewController.collectionView, coordinator: context.coordinator, animated: true)
+        } else {
+            // page changed
+            // see if data needs to be incremented
+            if page.increment {
+                dataModel.incrementData()
+            } else {
+                dataModel.decrementData()
+            }
+            
+            updateCollectionViewData(with: dataModel.data, using: context.coordinator.dataSource, animate: false)
+            // after data is updated, find the index of the item in the data array that matches page.index
+            let index = dataModel.data.firstIndex(of: page.index)!
+            scrollTo(index, view: uiViewController.collectionView, coordinator: context.coordinator, animated: page.animate)
+        }
     }
     
     
     func makeCoordinator() -> Coordinator {
-        Coordinator($page)
+        Coordinator(self)
     }
     
     
-    private func scrollTo(_ index: Int, view: UICollectionView, context: Context) {
+    private func scrollTo(_ index: Int, view: UICollectionView, coordinator: Coordinator, animated: Bool = false) {
         // Remove the delegate to manually scroll, then re-add
         view.delegate = nil
         print("------")
-        let index = (dataModel.data.count - 1) / 2
-        print("Scrolling to index \(index)")
-        view.scrollToPage(index: index, animated: false, offset: &context.coordinator.offset)
-        view.delegate = context.coordinator
-    }
-    
-    
-    // only want to shift data if contentOffset adjustment was user initiated
-    private func shiftData(_ scrollView: UICollectionView, context: Context) {
-        
-        guard dataModel.shouldAdjustData else {
-            print("Preventing data shift because page (\(page.index)) is not greater than the middle point \( dataModel.data[(dataModel.data.count - 1) / 2] )")
-            
-            // getting called twice
-            if dataModel.shouldDecrement && page.index < context.coordinator._temp {
-                dataModel.decrement()
-                updateCollectionViewData(with: dataModel.data, using: context.coordinator.dataSource, animate: false)
-                let index = (dataModel.data.count - 1) / 2
-                scrollTo(index, view: scrollView, context: context)
-                context.coordinator._temp = dataModel.page.index
-            }
-            
-            return
-        }
-        
-        if dataModel.page.index > context.coordinator._temp {
-            dataModel.increment()
-            updateCollectionViewData(with: dataModel.data, using: context.coordinator.dataSource, animate: false)
-            let index = (dataModel.data.count - 1) / 2
-            scrollTo(index, view: scrollView, context: context)
-        }
-        
-        context.coordinator._temp = dataModel.page.index
+        print("Scrolling to index \(index) of \(dataModel.data) (\(dataModel.data[index])), animated: \(animated)")
+        view.scrollToPage(index: index, animated: animated, offset: &coordinator.offset)
+        view.delegate = coordinator
     }
     
     
     final class Coordinator: NSObject, UICollectionViewDelegateFlowLayout, UICollectionViewDelegate {
         
-        @Binding var page: Page
+        let view: InfinitePagingCollectionView
         
         var offset = 0.0
         var _temp: Int = 0
         var dataSource: UICollectionViewDiffableDataSource<Section, Identifier>!
         
-        init(_ page: Binding<Page>) {
-            self._page = page
+        init(_ wrapper: InfinitePagingCollectionView) {
+            self.view = wrapper
         }
         
         func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
             return CGSize(width: collectionView.frame.width, height: collectionView.frame.height)
         }
         
+        
         // Triggered from programmatic scroll
         func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) {
-            afterScrollActions(scrollView)
+            // see if data needs to be incremented
+            if view.page.increment {
+                view.dataModel.incrementData()
+            } else {
+                view.dataModel.decrementData()
+            }
+            
+            view.updateCollectionViewData(with: view.dataModel.data, using: dataSource, animate: false)
+            view.scrollTo(view.dataModel.index, view: scrollView as! UICollectionView, coordinator: self)
         }
+        
         
         // Triggered from finger scroll
         func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-            afterScrollActions(scrollView)
-        }
-        
-        private func afterScrollActions(_ scrollView: UIScrollView) {
             guard let scrollView = scrollView as? UICollectionView else { return }
             
             let currentOffset = scrollView.contentOffset.x
@@ -177,12 +147,11 @@ struct InfinitePagingCollectionView<Cell: UICollectionViewCell & Configurable>: 
             }
             
             if currentOffset > offset {
-                page.increment()
+                view.dataModel.increment()
             } else {
-                page.decrement()
+                view.dataModel.decrement()
             }
             
-            print("Scroll complete, now at page \(page.index)")
             offset = currentOffset
         }
     }

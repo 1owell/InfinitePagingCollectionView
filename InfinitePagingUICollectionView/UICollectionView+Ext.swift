@@ -14,7 +14,7 @@ extension UICollectionView {
     }
     
     func scrollToPage(index: Int, animated: Bool = true, offset: inout Double) {
-        scrollToItem(at: .init(item: index, section: 0), at: .centeredHorizontally, animated: animated)
-        offset = self.contentOffset.x
+        scrollToItem(at: .init(row: index, section: 0), at: .centeredHorizontally, animated: animated)
+        offset = contentOffset.x
     }
 }
