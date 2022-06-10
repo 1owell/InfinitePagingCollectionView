@@ -10,7 +10,8 @@ import Foundation
 final class DataModel: ObservableObject {
     
     @Published var page = Page()
-    var data: [Int] = [0, 1, 2, 3, 4, 5, 6]
+    
+    var data: [Int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     
     var index: Int {
         data.firstIndex(of: page.index) ?? 0
@@ -23,8 +24,6 @@ final class DataModel: ObservableObject {
     func increment(withAnimation: Bool = false) {
         // increment page
         page.increment(withAnimation: withAnimation)
-        
-        
     }
     
     func incrementData() {
@@ -42,8 +41,6 @@ final class DataModel: ObservableObject {
     func decrement(withAnimation: Bool = false) {
         // decrement page
         page.decrement(withAnimation: withAnimation)
-        
-        
     }
     
     func decrementData() {
@@ -54,25 +51,5 @@ final class DataModel: ObservableObject {
         }
         
         print("Data decremented \(data)")
-    }
-}
-
-struct Page {
-    var index: Int = 0
-    var animate = false
-    var increment = false
-    
-    mutating func increment(withAnimation: Bool = false) {
-        animate = withAnimation
-        increment = true
-        index += 1
-    }
-    
-    mutating func decrement(withAnimation: Bool = false) {
-        guard index > 0 else { return }
-        
-        animate = withAnimation
-        increment = false
-        index -= 1
     }
 }

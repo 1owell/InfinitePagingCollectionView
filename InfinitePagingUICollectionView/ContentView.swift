@@ -35,6 +35,10 @@ struct ContentView: View {
                 })
             }
             .padding()
+            
+            Button("Simulate scroll") {
+                dataModel.page.index = 0
+            }
         }
     }
 }

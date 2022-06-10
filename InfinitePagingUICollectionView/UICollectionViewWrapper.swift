@@ -6,10 +6,6 @@
 
 import SwiftUI
 
-protocol CollectionViewSection: Hashable {
-    static var main: Self { get }
-}
-
 enum DayCollectionSection: Int {
     case main
 }
@@ -19,6 +15,7 @@ struct InfinitePagingCollectionView: UIViewControllerRepresentable {
     typealias Section    = DayCollectionSection
     typealias Identifier = Int
     typealias DataSource = UICollectionViewDiffableDataSource<Section, Identifier>
+    let reuseID = "cell"
     
     @Binding var page: Page
     let dataModel: DataModel
@@ -36,16 +33,21 @@ struct InfinitePagingCollectionView: UIViewControllerRepresentable {
         let controller = UICollectionViewController(collectionViewLayout: layout)
         controller.collectionView.showsHorizontalScrollIndicator = false
         controller.collectionView.isPagingEnabled = true
-        controller.collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: DayCollectionViewCell.reuseID)
         controller.collectionView.delegate = context.coordinator
+        controller.collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: reuseID)
         
         let dataSource = UICollectionViewDiffableDataSource<Section, Identifier>(collectionView: controller.collectionView)
         { collectionView, indexPath, itemIdentifier in
-            let reuse = DayCollectionViewCell.reuseID
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: reuse, for: indexPath) as! Cell
+            
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: reuseID, for: indexPath)
 
-            cell.configure(in: controller, withView: Day(index: indexPath.row, data: itemIdentifier) as! Cell.Content)
-
+            cell.contentConfiguration = UIHostingConfiguration {
+                Text("\(itemIdentifier.description)")
+                    .font(.largeTitle)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemGray6))
+            }
+            
             return cell
         }
         
