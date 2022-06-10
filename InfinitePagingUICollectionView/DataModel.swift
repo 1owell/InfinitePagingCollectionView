@@ -11,7 +11,7 @@ final class DataModel: ObservableObject {
     
     @Published var page = Page()
     
-    var data: [Int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    var data: [Int] = [0, 1, 2, 3, 4, 5, 6]
     
     var index: Int {
         data.firstIndex(of: page.index) ?? 0
@@ -27,7 +27,10 @@ final class DataModel: ObservableObject {
     }
     
     func incrementData() {
-        guard page.index > data[(data.count - 1) / 2] else { return }
+        guard page.index > data[(data.count - 1) / 2] else {
+            print("Increment data did not pass guard")
+            return
+        }
         
         for index in 0..<data.count {
             data[index] += 1

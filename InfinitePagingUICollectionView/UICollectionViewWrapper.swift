@@ -75,8 +75,6 @@ struct InfinitePagingCollectionView: UIViewControllerRepresentable {
             // User tapped arrow button, should scroll then update data in the scrollViewDidEndAnimation delegate
             scrollTo(dataModel.index, view: uiViewController.collectionView, coordinator: context.coordinator, animated: true)
         } else {
-            // page changed
-            // see if data needs to be incremented
             if page.increment {
                 dataModel.incrementData()
             } else {
@@ -84,8 +82,9 @@ struct InfinitePagingCollectionView: UIViewControllerRepresentable {
             }
             
             updateCollectionViewData(with: dataModel.data, using: context.coordinator.dataSource, animate: false)
+            
             // after data is updated, find the index of the item in the data array that matches page.index
-            let index = dataModel.data.firstIndex(of: page.index)!
+            let index = dataModel.data.firstIndex(of: page.index) ?? dataModel.data.endIndex
             scrollTo(index, view: uiViewController.collectionView, coordinator: context.coordinator, animated: page.animate)
         }
     }
